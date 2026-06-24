@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GYM SESSION">
+<title>GYM SESSION</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0a0c0d">
+<script>
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+  }
+</script>
+<style>
+:root {
+  --bg:       #0a0c0d;
+  --surf:     #141618;
+  --card:     #1a1d1f;
+  --border:   #252829;
+  --lima:     #c8f135;
+  --lima-dim: rgba(200,241,53,.12);
+  --text:     #e8e6e1;
+  --muted:    #5a5e63;
+  --muted2:   #3a3e43;
+  --red:      #e05252;
+  --arch:     'Archivo', -apple-system, sans-serif;
+  --mono:     'JetBrains Mono', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--arch); overscroll-behavior: none; }
+
+/* ── STATUS BAR SPACER ── */
+.status-bar { height: env(safe-area-inset-top, 44px); background: var(--bg); }
+
+/* ── HEADER ── */
+.hdr {
+  background: var(--bg);
+  padding: 10px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.hdr-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.hdr-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 3px; }
+.hdr-date { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.hdr-phase { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--lima); text-align: right; }
+.hdr-weeks { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; margin-top: 2px; }
+
+/* ── TABS ── */
+.tabs {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; background: var(--surf);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 200;
+}
+.tab {
+  flex: 1; padding: 12px 4px 10px;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+  background: none; border: none; cursor: pointer;
+  border-top: 2px solid transparent; transition: color .15s, border-color .15s;
+}
+.tab.on { color: var(--lima); border-top-color: var(--lima); }
+
+/* ── SCREENS ── */
+.scr { display: none; padding: 0 0 90px; }
+.scr.on { display: block; }
+
+/* ── SESSION HEADER ── */
+.sess-hdr {
+  padding: 16px 20px 0;
+}
+.sess-block {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: .12em; text-transform: uppercase; margin-bottom: 6px;
+}
+.sess-title-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.sess-title { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.sess-count { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--lima); }
+
+/* ── SECTION LABEL ── */
+.sec-label {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: .14em; text-transform: uppercase;
+  padding: 18px 20px 8px;
+}
+
+/* ── EXERCISE CARD ── */
+.exc {
+  margin: 0 16px 10px;
+  background: var(--surf);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color .2s;
+}
+.exc.done { border-color: var(--lima); }
+.exc.swapped { border-color: #8b6fe8; }
+
+.exc-top { display: flex; align-items: flex-start; gap: 12px; padding: 14px 14px 10px; }
+
+.exc-badge {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--lima); color: #0a0c0d;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.exc.done .exc-badge { background: var(--lima); opacity: .7; }
+.exc.swapped .exc-badge { background: #8b6fe8; color: #fff; }
+
+.exc-info { flex: 1; }
+.exc-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.01em; }
+.exc-meta { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--lima); }
+.exc.swapped .exc-meta { color: #8b6fe8; }
+
+/* ── RPE BAR ── */
+.rpe-row { display: flex; align-items: center; gap: 10px; padding: 0 14px 10px; }
+.rpe-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .1em; white-space: nowrap; }
+.rpe-track { flex: 1; height: 4px; background: var(--muted2); border-radius: 2px; }
+.rpe-fill { height: 100%; border-radius: 2px; background: var(--lima); transition: width .3s; }
+.rpe-val { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* ── CARD BODY ── */
+.exc-body { padding: 0 14px 14px; }
+.exc-desc { font-size: 13px; color: #8a8880; line-height: 1.55; margin-bottom: 10px; }
+
+.bjj-tag {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  background: var(--lima-dim); color: var(--lima);
+  padding: 5px 10px; border-radius: 6px; margin-bottom: 12px;
+}
+
+.carga-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+.carga-txt { font-family: var(--mono); font-size: 12px; color: #8a8880; line-height: 1.5; margin-bottom: 14px; }
+
+/* ── BLOCKED ALERT ── */
+.blocked-alert {
+  background: rgba(200,241,53,.08); border: 1px solid rgba(200,241,53,.25);
+  border-radius: 8px; padding: 8px 10px; margin-bottom: 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--lima);
+}
+
+/* ── ACTION ROW ── */
+.action-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.btn-complete {
+  flex: 1; padding: 13px;
+  background: var(--lima); color: #0a0c0d;
+  font-family: var(--arch); font-size: 14px; font-weight: 700;
+  border: none; border-radius: 10px; cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-complete:active { opacity: .8; }
+.btn-complete.done-state {
+  background: var(--lima-dim); color: var(--lima);
+  border: 1px solid rgba(200,241,53,.3);
+}
+.btn-datos {
+  padding: 13px 16px;
+  background: var(--card); color: var(--muted);
+  font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+  transition: all .15s; white-space: nowrap;
+}
+.btn-datos.open { color: var(--lima); border-color: rgba(200,241,53,.4); }
+
+/* ── DATA PANEL ── */
+.data-panel { display: none; padding: 12px; background: var(--card); border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
+.data-panel.open { display: block; }
+.data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.fld label { font-family: var(--mono); font-size: 10px; color: var(--muted); display: block; margin-bottom: 4px; letter-spacing: .08em; }
+.fld input, .fld textarea {
+  width: 100%; background: var(--surf); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px; color: var(--text);
+  font-family: var(--mono); font-size: 15px; -webkit-appearance: none;
+}
+.fld input:focus, .fld textarea:focus { outline: none; border-color: var(--lima); }
+.fld textarea { font-size: 13px; resize: none; font-family: var(--arch); }
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* RPE selector */
+.rpe-sel-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; margin-bottom: 6px; }
+.rpe-sel { display: flex; gap: 3px; }
+.rpe-pip {
+  flex: 1; height: 28px; background: var(--surf); border: 1px solid var(--border);
+  border-radius: 5px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all .1s; user-select: none;
+}
+.rpe-pip.on { background: var(--lima); border-color: var(--lima); color: #0a0c0d; font-weight: 700; }
+
+/* ── SWAP LINK ── */
+.swap-link {
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  cursor: pointer; padding: 4px 0; display: inline-flex; align-items: center; gap: 4px;
+  transition: color .15s;
+}
+.swap-link:active { color: var(--lima); }
+.swap-panel { display: none; margin-top: 10px; }
+.swap-panel.open { display: block; }
+.swap-opt {
+  padding: 10px 12px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: border-color .15s;
+}
+.swap-opt:last-child { margin-bottom: 0; }
+.swap-opt:active, .swap-opt.picked { border-color: var(--lima); }
+.swap-opt.picked { background: var(--lima-dim); }
+.swap-opt-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.swap-opt-sub { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.swap-reset {
+  margin-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+  cursor: pointer; display: flex; align-items: center; gap: 4px;
+}
+.swap-reset:active { color: var(--lima); }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 70px 20px; color: var(--muted); }
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.empty-sub { font-size: 13px; font-family: var(--mono); line-height: 1.6; }
+
+/* ── NUEVA SCREEN ── */
+.nueva-body { padding: 20px 20px 100px; }
+.phase-pill {
+  display: inline-flex; padding: 6px 14px; border-radius: 20px;
+  font-family: var(--mono); font-size: 11px; font-weight: 700;
+  margin-bottom: 20px;
+}
+.ph-preA { background: var(--lima-dim); color: var(--lima); }
+.ph-preB { background: rgba(200,241,53,.2); color: var(--lima); }
+.ph-taper { background: rgba(139,111,232,.15); color: #8b6fe8; }
+.ph-comp  { background: rgba(74,124,89,.15); color: #6abf7a; }
+
+.field-lbl { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; }
+
+/* DAY CARDS */
+.day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+.day-card {
+  background: var(--surf); border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 18px 14px; cursor: pointer;
+  transition: border-color .2s, background .2s; text-align: center;
+}
+.day-card.on { border-color: var(--lima); background: var(--lima-dim); }
+.day-card .dn { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.day-card .ds { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+.day-card.on .ds { color: var(--lima); }
+
+/* EQUIP CHIPS */
+.chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.chip {
+  padding: 8px 14px; background: var(--surf); border: 1px solid var(--border);
+  border-radius: 20px; font-family: var(--mono); font-size: 12px;
+  color: var(--muted); cursor: pointer; transition: all .15s; user-select: none;
+}
+.chip.on { background: var(--lima-dim); border-color: var(--lima); color: var(--lima); }
+
+.fld-area { background: var(--surf); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 22px; }
+.fld-area textarea { background: transparent; border: none; outline: none; width: 100%; color: var(--text); font-family: var(--arch); font-size: 13px; resize: none; }
+
+/* BTN FULL */
+.btn-full {
+  width: 100%; padding: 15px;
+  background: var(--lima); color: #0a0c0d;
+  font-family: var(--arch); font-size: 15px; font-weight: 800;
+  border: none; border-radius: 12px; cursor: pointer; transition: opacity .15s;
+  letter-spacing: -.01em;
+}
+.btn-full:active { opacity: .8; }
+
+/* ── LOG SCREEN ── */
+.log-body { padding: 6px 16px 0; }
+.hist-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px; margin-bottom: 10px;
+}
+.hist-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.hist-date { font-family: var(--mono); font-size: 12px; color: var(--lima); font-weight: 700; }
+.hist-phase { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.hist-block { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-bottom: 8px; letter-spacing: .06em; }
+.hist-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.hist-row:last-child { border: none; }
+.hist-exname { font-size: 13px; font-weight: 600; }
+.hist-exdata { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.hist-note { font-size: 12px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-family: var(--mono); }
+
+/* ── PROGRESS SCREEN ── */
+.prog-body { padding: 6px 16px 0; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.stat-box { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.stat-n { font-size: 32px; font-family: var(--mono); font-weight: 700; color: var(--lima); }
+.stat-l { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+
+.ex-stat { background: var(--surf); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 8px; }
+.ex-stat-name { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+.ex-stat-row { display: flex; gap: 14px; }
+.esi .v { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--lima); }
+.esi .k { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+
+/* ── BOTTOM CTA (nueva) ── */
+.btm-cta {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 60px);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  z-index: 150;
+}
+
+/* ── FINISH CTA ── */
+.finish-cta {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 60px);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  z-index: 150;
+}
+.btn-finish {
+  width: 100%; padding: 15px;
+  background: var(--lima); color: #0a0c0d;
+  font-family: var(--arch); font-size: 15px; font-weight: 800;
+  border: none; border-radius: 12px; cursor: pointer; transition: opacity .15s;
+}
+.btn-finish:active { opacity: .8; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(16px);
+  background: var(--lima); color: #0a0c0d; padding: 10px 20px;
+  border-radius: 20px; font-family: var(--arch); font-size: 13px; font-weight: 700;
+  opacity: 0; transition: all .25s; z-index: 9999; white-space: nowrap; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* sticky header for session */
+.sticky-hdr { position: sticky; top: 0; z-index: 100; background: var(--bg); }
+</style>
+</head>
+<body>
+
+<div class="status-bar"></div>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div>
+      <div class="hdr-label">GYM SESSION</div>
+      <div class="hdr-date" id="hDate">—</div>
+    </div>
+    <div>
+      <div class="hdr-phase" id="hPhase">—</div>
+      <div class="hdr-weeks" id="hWeeks">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION SCREEN -->
+<div class="scr on" id="scr-session">
+  <div id="s-empty" class="empty">
+    <div class="empty-icon">🥋</div>
+    <div class="empty-title">Sin sesión activa</div>
+    <div class="empty-sub">Ve a NUEVA para iniciar<br>la rutina del día</div>
+  </div>
+  <div id="s-content" style="display:none">
+    <div class="sticky-hdr">
+      <div class="sess-hdr">
+        <div class="sess-block" id="s-block">—</div>
+        <div class="sess-title-row">
+          <div class="sess-title" id="s-title">—</div>
+          <div class="sess-count" id="s-count">0/0</div>
+        </div>
+      </div>
+    </div>
+    <div id="exList"></div>
+    <div style="height:80px"></div>
+  </div>
+  <div class="finish-cta" id="fin-cta" style="display:none">
+    <button class="btn-finish" onclick="finishSession()">Terminar sesión</button>
+  </div>
+</div>
+
+<!-- LOG SCREEN -->
+<div class="scr" id="scr-log">
+  <div style="padding:16px 20px 8px">
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase">Historial</div>
+  </div>
+  <div class="log-body" id="logList"></div>
+</div>
+
+<!-- PROGRESS SCREEN -->
+<div class="scr" id="scr-progress">
+  <div style="padding:16px 20px 8px">
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase">Progreso</div>
+  </div>
+  <div class="prog-body">
+    <div class="stat-grid" id="statGrid"></div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px">Por ejercicio</div>
+    <div id="exProg"></div>
+  </div>
+</div>
+
+<!-- NUEVA SCREEN -->
+<div class="scr" id="scr-new">
+  <div class="nueva-body">
+    <div class="phase-pill ph-preA" id="phase-pill">—</div>
+
+    <div class="field-lbl">Día de entrenamiento</div>
+    <div class="day-grid" id="dayGrid">
+      <div class="day-card on" data-day="lunes" onclick="pickDay(this)">
+        <div class="dn">LUN</div>
+        <div class="ds">Full Body A</div>
+      </div>
+      <div class="day-card" data-day="miercoles" onclick="pickDay(this)">
+        <div class="dn">MIÉ</div>
+        <div class="ds">Full Body B</div>
+      </div>
+    </div>
+
+    <div class="field-lbl">Equipos ocupados hoy</div>
+    <div class="chip-wrap" id="equipChips">
+      <div class="chip" data-eq="smith" onclick="toggleChip(this)">Smith machine</div>
+      <div class="chip" data-eq="cables" onclick="toggleChip(this)">Cables</div>
+      <div class="chip" data-eq="bench" onclick="toggleChip(this)">Bancos</div>
+      <div class="chip" data-eq="legpress" onclick="toggleChip(this)">Leg press</div>
+      <div class="chip" data-eq="dumbheavy" onclick="toggleChip(this)">Mancuernas &gt;30lb</div>
+    </div>
+
+    <div class="field-lbl">Nota del día (opcional)</div>
+    <div class="fld-area" style="margin-bottom:100px">
+      <textarea id="dayNote" rows="2" placeholder="Ej: hombro derecho sensible, poco sueño..."></textarea>
+    </div>
+  </div>
+  <div class="btm-cta">
+    <button class="btn-full" onclick="startSession()">Iniciar sesión</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab on" data-tab="session" onclick="goTab(this)">Sesión</button>
+  <button class="tab" data-tab="log" onclick="goTab(this)">Log</button>
+  <button class="tab" data-tab="progress" onclick="goTab(this)">Progreso</button>
+  <button class="tab" data-tab="new" onclick="goTab(this)">Nueva</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── STORAGE ──────────────────────────────────────────────────────────────────
+const SK = 'gym_bjj_v3';
+let ST = { sessions:[], current:null };
+try { const d=localStorage.getItem(SK); if(d) ST={...ST,...JSON.parse(d)}; } catch(e){}
+const save = () => { try{localStorage.setItem(SK,JSON.stringify(ST))}catch(e){} };
+
+let cfg = { day:'lunes', unavail:[] };
+
+// ─── PHASE ───────────────────────────────────────────────────────────────────
+const ESL = new Date('2026-08-15');
+function getPhase(){
+  const now = new Date();
+  const days = Math.ceil((ESL-now)/864e5);
+  const w = days/7;
+  if(days<0)  return{k:'post',  label:'Post-comp',        w:0,  cls:'ph-comp'};
+  if(w<=1)    return{k:'comp',  label:'Semana ESL 🏆',    w:1,  cls:'ph-comp'};
+  if(w<=3)    return{k:'taper', label:'Taper',             w:Math.round(w), cls:'ph-taper'};
+  if(w<=6)    return{k:'preB',  label:'Pre-comp final',    w:Math.round(w), cls:'ph-preB'};
+              return{k:'preA',  label:'Pre-comp inicial',  w:Math.round(w), cls:'ph-preA'};
+}
+function phKey(p){ return p.k==='post'?'comp':p.k; }
+
+// ─── ROUTINE DATA ─────────────────────────────────────────────────────────────
+const DAYS = {
+lunes:{
+  preA:{
+    title:'Full Body A — Fuerza Base',
+    block:'LUNES · PRE-COMP INICIAL',
+    exercises:[
+      { id:'la1', block:'warm-up',
+        name:'Hip Thrust (Smith)',
+        sets:3, reps:'12-15', rest:'60 seg', intensity:5,
+        carga:'Barra sola al inicio, sube hasta sentir trabajo glúteo sin perder posición lumbar.',
+        desc:'Espalda alta en banco, barra con pad sobre cadera. Empuja caderas hacia arriba hasta alinear rodillas-cadera-hombros. Aprieta glúteo 1 seg arriba.',
+        bjj:'Potencia de bridging y escape de montada.',
+        req:['smith','bench'],
+        alts:[
+          {name:'Hip Thrust con Mancuerna',desc:'Mancuerna grande sobre cadera, espalda en banco o en el piso.',req:['bench']},
+          {name:'Glute Bridge en piso',desc:'En el piso sin banco. Mancuerna en cadera. 3×15.',req:[]}
+        ]
+      },
+      { id:'la2', block:'main',
+        name:'Romanian Deadlift (DB)',
+        sets:4, reps:'8-10', rest:'90 seg', intensity:8,
+        carga:'Mancuernas 30-40 lb. Jalón en isquios, no dolor lumbar.',
+        desc:'Mancuernas frente a muslos, cadera atrás con espalda neutral. Baja hasta sentir jalón en isquios (~altura de espinilla). Sube contrayendo glúteos.',
+        bjj:'Potencia de extensión de cadera para sweeps y takedowns.',
+        req:[],
+        alts:[]
+      },
+      { id:'la3', block:'main',
+        name:'Bulgarian Split Squat',
+        sets:4, reps:'8 c/lado', rest:'90 seg', intensity:8,
+        carga:'Mancuernas 20-30 lb. Si tambaleas, reduce peso.',
+        desc:'Pie trasero en banco, torso ligeramente inclinado. Baja hasta que rodilla trasera casi toque el piso. Sube empujando talón delantero.',
+        bjj:'Fuerza unilateral para stand-ups y shots.',
+        req:['bench'],
+        alts:[
+          {name:'Goblet Squat',desc:'Mancuerna al pecho, profundidad máxima. 4×10.',req:[]}
+        ]
+      },
+      { id:'la4', block:'main',
+        name:'Lat Pulldown (Cable)',
+        sets:4, reps:'8-10', rest:'90 seg', intensity:8,
+        carga:'Carga que permita ROM completo sin que hombros suban.',
+        desc:'Agarre cerrado neutro o prono. Jala hasta que la barra toque el esternón. Escápulas abajo y atrás al final. Sin impulso.',
+        bjj:'Lats para clinch, underhooks y control de cabeza No-Gi.',
+        req:['cables'],
+        alts:[
+          {name:'DB Row Unilateral',desc:'Banco inclinado + mancuerna. 4×10 c/lado.',req:['bench']},
+          {name:'DB Row de pie',desc:'Mancuerna, un brazo apoyado en Smith machine o columna. 4×10 c/lado.',req:[]}
+        ]
+      },
+      { id:'la5', block:'main',
+        name:'Incline DB Press',
+        sets:3, reps:'10-12', rest:'75 seg', intensity:7,
+        carga:'Mancuernas 20-30 lb. Menos volumen que pulls (ratio 2:1).',
+        desc:'Banco a 30-45°. Mancuernas a altura de pecho, empuja hacia arriba. No bloquees codos al final.',
+        bjj:'Fuerza de framing y sprawling.',
+        req:['bench'],
+        alts:[
+          {name:'DB Floor Press',desc:'En el piso. ROM reducido, protege hombro. 3×12.',req:[]}
+        ]
+      },
+      { id:'la6', block:'finisher',
+        name:'Pallof Press (Cable)',
+        sets:3, reps:'10 c/lado', rest:'45 seg', intensity:6,
+        carga:'Ligero — resistencia anti-rotacional, no fuerza máxima.',
+        desc:'Polea a altura media. De lado a la polea, extiende brazos al frente y mantén 2 seg sin girar. Núcleo firme todo el tiempo.',
+        bjj:'Anti-rotación de core para posición en guardia.',
+        req:['cables'],
+        alts:[
+          {name:'Hollow Body Hold',desc:'Piso. Brazos extendidos, lumbar pegada. 3×30 seg.',req:[]}
+        ]
+      },
+      { id:'la7', block:'finisher',
+        name:'Farmer Carry (DB)',
+        sets:3, reps:'30 seg', rest:'45 seg', intensity:6,
+        carga:'Mancuernas 35-45 lb. Si el grip cede antes de 20 seg, baja peso.',
+        desc:'Mancuernas pesadas a los lados, hombros atrás y abajo, camina erguido. En espacio reducido: da vuelta cada 3-4 pasos.',
+        bjj:'Grip strength y resistencia de antebrazos para control en Gi.',
+        req:[],
+        alts:[]
+      }
+    ]
+  },
+  preB:{
+    title:'Full Body A — Potencia',
+    block:'LUNES · PRE-COMP FINAL',
+    exercises:[
+      { id:'lb_a1', block:'warm-up',
+        name:'Hip Thrust (Smith)',
+        sets:3, reps:'10', rest:'60 seg', intensity:5,
+        carga:'Moderado. Activación de cadena posterior.',
+        desc:'Barra con pad en cadera. Empuja explosivo arriba, baja controlado.',
+        bjj:'Activar glúteos e isquios pre-sesión.',
+        req:['smith','bench'],
+        alts:[{name:'Glute Bridge en piso',desc:'Mancuerna en cadera. 3×12.',req:[]}]
+      },
+      { id:'lb_a2', block:'main',
+        name:'Romanian Deadlift (DB) — Fuerza',
+        sets:4, reps:'6-8', rest:'2 min', intensity:9,
+        carga:'Mancuernas 40-50 lb. Mayor carga que fase anterior.',
+        desc:'Cadera atrás, espalda neutral. Baja lento (3 seg), sube apretando glúteos fuerte.',
+        bjj:'Potencia máxima de cadena posterior pre-ESL.',
+        req:[],
+        alts:[]
+      },
+      { id:'lb_a3', block:'main',
+        name:'Bulgarian Split Squat — Explosivo',
+        sets:3, reps:'5 c/lado', rest:'2 min', intensity:9,
+        carga:'Mancuernas 30-40 lb. Baja 2 seg, sube explosivo.',
+        desc:'Baja controlado, pausa 1 seg abajo, sube con máxima velocidad. La potencia sale del talón delantero.',
+        bjj:'Explosividad unilateral para scrambles y entradas.',
+        req:['bench'],
+        alts:[{name:'Goblet Squat Explosivo',desc:'Mancuerna al pecho, sube explosivo. 3×6.',req:[]}]
+      },
+      { id:'lb_a4', block:'main',
+        name:'Lat Pulldown Explosivo',
+        sets:4, reps:'5-6', rest:'2 min', intensity:9,
+        carga:'Mayor carga que preA. Jala explosivo, baja 3 seg.',
+        desc:'Agarre cerrado. Concéntrico explosivo hasta el esternón. Excéntrico lento y controlado.',
+        bjj:'Potencia de pulling para finalizaciones No-Gi.',
+        req:['cables'],
+        alts:[{name:'DB Row Heavy',desc:'Mancuerna máxima disponible, jala explosivo. 4×5 c/lado.',req:[]}]
+      },
+      { id:'lb_a5', block:'finisher',
+        name:'Bike Sprint Intervals',
+        sets:1, reps:'8 rondas: 30 seg ON / 30 seg OFF', rest:'—', intensity:9,
+        carga:'ON: máximo esfuerzo. OFF: pedal suave. 8 min total.',
+        desc:'30 seg a máxima intensidad posible en bicicleta estacionaria. 30 seg recuperación activa. 8 rondas completas.',
+        bjj:'Conditioning aeróbico-anaeróbico para rounds de 5-6 min No-Gi.',
+        req:[],
+        alts:[]
+      },
+      { id:'lb_a6', block:'finisher',
+        name:'Plate Pinch + Dead Hang',
+        sets:3, reps:'20 seg pinch + 20 seg hang', rest:'45 seg', intensity:6,
+        carga:'Pinch: 2 discos 10 lb. Hang: peso corporal en barra alta.',
+        desc:'Pellizca dos discos de 10 lb por el borde liso y mantén 20 seg. Luego cuélgate de barra alta agarre prono, mantén 20 seg.',
+        bjj:'Resistencia de grip para No-Gi: muñecas, dedos y antebrazos.',
+        req:[],
+        alts:[]
+      }
+    ]
+  },
+  taper:{
+    title:'Full Body A — Activación',
+    block:'LUNES · TAPER',
+    exercises:[
+      { id:'lt1', block:'main',
+        name:'Hip Thrust',
+        sets:2, reps:'10', rest:'75 seg', intensity:4,
+        carga:'50-60% de tu peso habitual. Sin buscar fatiga.',
+        desc:'Movimiento conocido. Siente la cadena posterior activarse sin acumular carga.',
+        bjj:'Mantener patrón sin costo de recuperación.',
+        req:['bench'],
+        alts:[{name:'Glute Bridge',desc:'En el piso, ligero. 2×10.',req:[]}]
+      },
+      { id:'lt2', block:'main',
+        name:'Romanian Deadlift',
+        sets:2, reps:'8', rest:'90 seg', intensity:5,
+        carga:'60% de lo habitual.',
+        desc:'Movimiento fluido. Sin profundidad máxima ni esfuerzo real.',
+        bjj:'Mantener cadena posterior activa.',
+        req:[],
+        alts:[]
+      },
+      { id:'lt3', block:'main',
+        name:'Lat Pulldown',
+        sets:2, reps:'8', rest:'75 seg', intensity:5,
+        carga:'60% de lo habitual.',
+        desc:'ROM completo, sin fatiga. Movimiento limpio.',
+        bjj:'Mantener patrón de pulling.',
+        req:['cables'],
+        alts:[{name:'DB Row',desc:'Ligero. 2×8 c/lado.',req:[]}]
+      },
+      { id:'lt4', block:'finisher',
+        name:'Farmer Carry',
+        sets:2, reps:'20 seg', rest:'45 seg', intensity:4,
+        carga:'Mancuernas 25-30 lb. Grip activo no máximo.',
+        desc:'Paso firme. Hombros atrás. Grip suave pero constante.',
+        bjj:'Mantener grip listo sin agotarlo pre-comp.',
+        req:[],
+        alts:[]
+      }
+    ]
+  },
+  comp:{
+    title:'Activación Ligera A',
+    block:'LUNES · SEMANA ESL',
+    exercises:[
+      { id:'lc1', block:'main',
+        name:'Glute Bridge',
+        sets:2, reps:'10', rest:'60 seg', intensity:3,
+        carga:'Ligero o sin carga. Solo activar.',
+        desc:'En el piso. Sin buscar rango extremo ni tensión.',
+        bjj:'Activar cadena posterior sin fatiga.',
+        req:[],
+        alts:[]
+      },
+      { id:'lc2', block:'main',
+        name:'Goblet Squat',
+        sets:2, reps:'8', rest:'60 seg', intensity:3,
+        carga:'Mancuerna 15-20 lb.',
+        desc:'Profundidad cómoda. Pausa 1 seg abajo.',
+        bjj:'Movilidad de cadera y activación.',
+        req:[],
+        alts:[]
+      },
+      { id:'lc3', block:'main',
+        name:'Lat Pulldown',
+        sets:2, reps:'8', rest:'60 seg', intensity:3,
+        carga:'40-50% de lo habitual.',
+        desc:'Movimiento suave. Sin buscar fatiga.',
+        bjj:'Activar lats sin costo de recuperación.',
+        req:['cables'],
+        alts:[{name:'DB Row',desc:'Muy ligero. 2×8.',req:[]}]
+      },
+      { id:'lc4', block:'finisher',
+        name:'Hollow Body Hold',
+        sets:2, reps:'25 seg', rest:'40 seg', intensity:3,
+        carga:'Sin carga. Lumbar pegada al piso.',
+        desc:'Brazos extendidos, piernas a 45°. Core firme.',
+        bjj:'Core listo para el mat.',
+        req:[],
+        alts:[]
+      }
+    ]
+  }
+},
+
+miercoles:{
+  preA:{
+    title:'Full Body B — Volumen + Grip',
+    block:'MIÉRCOLES · PRE-COMP INICIAL',
+    exercises:[
+      { id:'ma1', block:'warm-up',
+        name:'Face Pull (Cable + Rope)',
+        sets:3, reps:'15', rest:'45 seg', intensity:4,
+        carga:'Ligero — activación de retractores escapulares.',
+        desc:'Polea alta con rope, jala hacia la cara separando manos al final. Codos altos, pausa 1 seg. Activa manguito rotador.',
+        bjj:'Salud de hombro y postura de framing.',
+        req:['cables'],
+        alts:[{name:'DB Rear Delt Fly',desc:'De pie o inclinado, mancuernas ligeras. 3×15.',req:[]}]
+      },
+      { id:'ma2', block:'main',
+        name:'Leg Press',
+        sets:4, reps:'10-12', rest:'90 seg', intensity:8,
+        carga:'Carga moderada-alta. Pies a ancho de hombros.',
+        desc:'Espalda pegada al respaldo. Baja hasta ~90° sin despegar glúteos. Empuja parejo sin bloquear rodillas.',
+        bjj:'Volumen de cuádriceps para guard passing y stand-ups.',
+        req:['legpress'],
+        alts:[
+          {name:'Tempo Squat (Smith)',desc:'4 seg bajando, 1 seg pausa, sube. 4×8.',req:['smith']},
+          {name:'Goblet Squat Pesado',desc:'Mancuerna máxima, profundidad completa. 4×10.',req:[]}
+        ]
+      },
+      { id:'ma3', block:'main',
+        name:'Cable Row Sentado',
+        sets:4, reps:'10', rest:'90 seg', intensity:8,
+        carga:'Carga que permita escápulas juntas al final sin redondear espalda.',
+        desc:'Polea media, agarre V. Jala hasta que manos toquen abdomen bajo. Codos pegados al cuerpo. Pausa 1 seg al llegar.',
+        bjj:'Fuerza horizontal para clinch y underhooks.',
+        req:['cables'],
+        alts:[
+          {name:'Chest-Supported DB Row',desc:'Banco inclinado 45°, mancuernas colgando. 4×10.',req:['bench']},
+          {name:'DB Row de pie',desc:'Un brazo apoyado en columna o Smith. 4×10 c/lado.',req:[]}
+        ]
+      },
+      { id:'ma4', block:'main',
+        name:'Overhead DB Press',
+        sets:3, reps:'10-12', rest:'75 seg', intensity:7,
+        carga:'Mancuernas 20-25 lb. Sin arquear espalda baja.',
+        desc:'De pie o sentado. Mancuernas a altura de orejas, empuja hacia arriba. Mantén core activo. No bloquees codos al final.',
+        bjj:'Fuerza de pushing para clinch alto y proyecciones.',
+        req:[],
+        alts:[]
+      },
+      { id:'ma5', block:'main',
+        name:'EZ-Bar Curl',
+        sets:3, reps:'10', rest:'60 seg', intensity:6,
+        carga:'Sin oscilación de torso. Codos fijos.',
+        desc:'Codos a los lados, sube controlado, baja en 3 seg. Mantén tensión — no vayas todo el camino abajo.',
+        bjj:'Bíceps para collar grips, manga y control de brazo Gi.',
+        req:[],
+        alts:[]
+      },
+      { id:'ma6', block:'finisher',
+        name:'Copenhagen Plank',
+        sets:3, reps:'25 seg c/lado', rest:'45 seg', intensity:6,
+        carga:'Sin carga. Progresa añadiendo segundos.',
+        desc:'Pie superior en banco lateral, cuerpo en línea recta. Levanta cadera del piso y mantén. El pie inferior puede tocar el suelo levemente al inicio.',
+        bjj:'Aductores de cadera para half guard y x-guard.',
+        req:['bench'],
+        alts:[{name:'Hollow Body Hold',desc:'Piso. 3×30 seg.',req:[]}]
+      },
+      { id:'ma7', block:'finisher',
+        name:'Straight-Arm Pulldown (Cable)',
+        sets:3, reps:'12', rest:'60 seg', intensity:6,
+        carga:'Polea alta, barra recta. Carga que permita brazos casi extendidos en todo el recorrido.',
+        desc:'De pie frente a polea alta, brazos casi extendidos. Jala la barra hacia los muslos manteniendo los codos levemente doblados. Contrae lats al final.',
+        bjj:'Activación de lats en patrón de pulling largo — control de guardia y clinch.',
+        req:['cables'],
+        alts:[{name:'DB Row',desc:'Mancuerna + banco o de pie. 3×12 c/lado.',req:[]}]
+      }
+    ]
+  },
+  preB:{
+    title:'Full Body B — Fuerza Máxima',
+    block:'MIÉRCOLES · PRE-COMP FINAL',
+    exercises:[
+      { id:'mb1', block:'warm-up',
+        name:'Face Pull (Cable)',
+        sets:3, reps:'12', rest:'45 seg', intensity:4,
+        carga:'Ligero. Activación.',
+        desc:'Polea alta, rope a la cara. Codos altos. Activa retractores pre-sesión pesada.',
+        bjj:'Prevención de lesión de hombro.',
+        req:['cables'],
+        alts:[{name:'DB Rear Delt Fly',desc:'Ligeras. 3×12.',req:[]}]
+      },
+      { id:'mb2', block:'main',
+        name:'Leg Press — Fuerza',
+        sets:4, reps:'6', rest:'2 min', intensity:9,
+        carga:'Mayor carga que preA. Tu máximo controlado.',
+        desc:'Baja lento (3 seg), empuja fuerte y parejo. Sin que rodillas colapsen.',
+        bjj:'Pico de fuerza de cuádriceps antes del taper.',
+        req:['legpress'],
+        alts:[
+          {name:'Bulgarian Split Squat Pesado',desc:'Mancuernas máximas. 4×5 c/lado.',req:['bench']},
+          {name:'Goblet Squat Pesado',desc:'Mancuerna máxima. 4×5.',req:[]}
+        ]
+      },
+      { id:'mb3', block:'main',
+        name:'Cable Row — Fuerza',
+        sets:4, reps:'6', rest:'2 min', intensity:9,
+        carga:'Mayor carga que preA. Escápulas juntas al final.',
+        desc:'Polea media, jala con intención. Pausa 1 seg al final. Baja controlado.',
+        bjj:'Fuerza máxima de pulling horizontal para clinch No-Gi.',
+        req:['cables'],
+        alts:[{name:'DB Row Pesado',desc:'Mancuerna 40-50 lb. 4×5 c/lado.',req:[]}]
+      },
+      { id:'mb4', block:'main',
+        name:'Dips en Paralela',
+        sets:3, reps:'6-8', rest:'90 seg', intensity:8,
+        carga:'Peso corporal. Si es fácil, sostén mancuerna entre piernas.',
+        desc:'Paralela corta. Baja lento hasta codos a 90°, empuja hasta brazos casi extendidos. Torso ligeramente inclinado adelante activa más pectoral.',
+        bjj:'Fuerza de pushing funcional y estabilización escapular.',
+        req:[],
+        alts:[{name:'DB Floor Press Pesado',desc:'Mancuernas máximas. 3×6, pausa 1 seg abajo.',req:[]}]
+      },
+      { id:'mb5', block:'finisher',
+        name:'Dead Hang + Plate Pinch',
+        sets:3, reps:'20 seg hang + 20 seg pinch', rest:'45 seg', intensity:6,
+        carga:'Hang: peso corporal en barra alta. Pinch: 2 discos de 10 lb.',
+        desc:'Cuélgate de barra alta agarre prono y mantén 20 seg. Luego toma dos discos de 10 lb por el borde liso y mantén 20 seg.',
+        bjj:'Resistencia de grip en múltiples ángulos para No-Gi.',
+        req:[],
+        alts:[]
+      },
+      { id:'mb6', block:'finisher',
+        name:'Bike Sprint — Corto',
+        sets:1, reps:'6 rondas: 20 seg ON / 40 seg OFF', rest:'—', intensity:8,
+        carga:'20 seg a tope, 40 seg recuperación. 6 rondas.',
+        desc:'Sprints muy cortos con máxima potencia. Menos volumen que preA — reducción pre-taper.',
+        bjj:'Mantener potencia anaeróbica sin acumular fatiga.',
+        req:[],
+        alts:[]
+      }
+    ]
+  },
+  taper:{
+    title:'Full Body B — Activación',
+    block:'MIÉRCOLES · TAPER',
+    exercises:[
+      { id:'mt1', block:'main',
+        name:'Face Pull',
+        sets:2, reps:'12', rest:'45 seg', intensity:3,
+        carga:'Muy ligero.',
+        desc:'Solo activación escapular.',
+        bjj:'Hombros saludables.',
+        req:['cables'],
+        alts:[{name:'DB Rear Delt Fly',desc:'2×12, muy ligero.',req:[]}]
+      },
+      { id:'mt2', block:'main',
+        name:'Leg Press',
+        sets:2, reps:'8', rest:'75 seg', intensity:5,
+        carga:'60% de lo habitual.',
+        desc:'Fluido y controlado. Sin buscar carga.',
+        bjj:'Mantener activación de cuádriceps.',
+        req:['legpress'],
+        alts:[{name:'Goblet Squat',desc:'Mancuerna ligera. 2×8.',req:[]}]
+      },
+      { id:'mt3', block:'main',
+        name:'Cable Row',
+        sets:2, reps:'8', rest:'75 seg', intensity:5,
+        carga:'60% de lo habitual.',
+        desc:'ROM completo. Sin ego.',
+        bjj:'Mantener fuerza horizontal.',
+        req:['cables'],
+        alts:[{name:'DB Row',desc:'Ligero. 2×8 c/lado.',req:[]}]
+      },
+      { id:'mt4', block:'finisher',
+        name:'Hollow Body Hold',
+        sets:2, reps:'25 seg', rest:'40 seg', intensity:4,
+        carga:'Sin carga. Lumbar pegada.',
+        desc:'Activar core sin fatigarlo.',
+        bjj:'Core listo.',
+        req:[],
+        alts:[]
+      }
+    ]
+  },
+  comp:{
+    title:'Activación Ligera B',
+    block:'MIÉRCOLES · SEMANA ESL',
+    exercises:[
+      { id:'mc1', block:'main',
+        name:'Face Pull',
+        sets:2, reps:'12', rest:'45 seg', intensity:3,
+        carga:'Muy ligero.',
+        desc:'Hombros saludables.',
+        bjj:'Activar sin acumular fatiga.',
+        req:['cables'],
+        alts:[{name:'DB Rear Delt Fly',desc:'2×12.',req:[]}]
+      },
+      { id:'mc2', block:'main',
+        name:'Goblet Squat',
+        sets:2, reps:'8', rest:'60 seg', intensity:3,
+        carga:'Mancuerna 15 lb.',
+        desc:'Profundidad cómoda.',
+        bjj:'Movilidad de cadera.',
+        req:[],
+        alts:[]
+      },
+      { id:'mc3', block:'main',
+        name:'Cable Row',
+        sets:2, reps:'8', rest:'60 seg', intensity:3,
+        carga:'Muy ligero.',
+        desc:'Solo activación de pulling.',
+        bjj:'Lats y retractores listos.',
+        req:['cables'],
+        alts:[{name:'DB Row',desc:'2×8 c/lado.',req:[]}]
+      },
+      { id:'mc4', block:'finisher',
+        name:'Farmer Carry',
+        sets:2, reps:'20 seg', rest:'40 seg', intensity:3,
+        carga:'Mancuernas 20-25 lb.',
+        desc:'Grip activo pero sin fatigarlo.',
+        bjj:'Grip listo para comp.',
+        req:[],
+        alts:[]
+      }
+    ]
+  }
+}
+}; // end DAYS
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function initUI(){
+  const now = new Date();
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const months = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  document.getElementById('hDate').textContent =
+    `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]}`;
+  const p = getPhase();
+  document.getElementById('hPhase').textContent = p.label;
+  document.getElementById('hWeeks').textContent = p.w > 0 ? `ESL en ${p.w} sem` : '¡Esta semana!';
+  const pill = document.getElementById('phase-pill');
+  pill.textContent = `${p.label} · ${p.w > 0 ? p.w + ' sem al ESL' : '¡Esta semana!'}`;
+  pill.className = `phase-pill ${p.cls}`;
+  // auto-day
+  if(now.getDay()===3){
+    document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('on'));
+    document.querySelector('[data-day="miercoles"]').classList.add('on');
+    cfg.day='miercoles';
+  }
+}
+initUI();
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function goTab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('scr-'+el.dataset.tab).classList.add('on');
+  if(el.dataset.tab==='log') renderLog();
+  if(el.dataset.tab==='progress') renderProgress();
+}
+
+// ─── NEW SESSION UI ───────────────────────────────────────────────────────────
+function pickDay(el){
+  document.querySelectorAll('.day-card').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); cfg.day=el.dataset.day;
+}
+function toggleChip(el){
+  el.classList.toggle('on');
+  const eq=el.dataset.eq;
+  if(el.classList.contains('on')){ if(!cfg.unavail.includes(eq)) cfg.unavail.push(eq); }
+  else cfg.unavail=cfg.unavail.filter(e=>e!==eq);
+}
+
+// ─── START SESSION ────────────────────────────────────────────────────────────
+function startSession(){
+  const p=getPhase(); const pk=phKey(p);
+  const tmpl=DAYS[cfg.day][pk];
+  if(!tmpl){showToast('Rutina no disponible');return;}
+
+  const exercises=tmpl.exercises.map(ex=>{
+    const c=JSON.parse(JSON.stringify(ex));
+    c.uid=`${ex.id}_${Date.now()}_${Math.random().toString(36).slice(2,5)}`;
+    c.activeAlt=null;
+    c.blocked=c.req.some(r=>cfg.unavail.includes(r));
+    c.log={weight:'',rpe:0,note:''};
+    c.logDone=false;
+    c.dataOpen=false;
+    c.swapOpen=false;
+    return c;
+  });
+
+  ST.current={
+    uid:`sess_${Date.now()}`,
+    date:new Date().toLocaleDateString('es-MX'),
+    timestamp:Date.now(),
+    title:tmpl.title, block:tmpl.block,
+    day:cfg.day, phase:p.label,
+    note:document.getElementById('dayNote').value,
+    exercises, completed:false
+  };
+  save();
+
+  document.querySelectorAll('#equipChips .chip').forEach(c=>c.classList.remove('on'));
+  cfg.unavail=[];
+  document.getElementById('dayNote').value='';
+
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelector('[data-tab="session"]').classList.add('on');
+  document.getElementById('scr-session').classList.add('on');
+
+  renderSession();
+  showToast('Sesión iniciada');
+}
+
+// ─── RENDER SESSION ───────────────────────────────────────────────────────────
+function renderSession(){
+  const s=ST.current;
+  if(!s){
+    document.getElementById('s-empty').style.display='block';
+    document.getElementById('s-content').style.display='none';
+    document.getElementById('fin-cta').style.display='none';
+    return;
+  }
+  document.getElementById('s-empty').style.display='none';
+  document.getElementById('s-content').style.display='block';
+  document.getElementById('fin-cta').style.display='block';
+  document.getElementById('s-title').textContent=s.title;
+  document.getElementById('s-block').textContent=s.block;
+  updateCount();
+  buildExList();
+}
+
+function updateCount(){
+  const s=ST.current; if(!s) return;
+  const total=s.exercises.length;
+  const done=s.exercises.filter(e=>e.logDone).length;
+  document.getElementById('s-count').textContent=`${done}/${total}`;
+}
+
+function activeEx(ex){
+  if(ex.activeAlt!==null && ex.alts[ex.activeAlt])
+    return {...ex.alts[ex.activeAlt], uid:ex.uid};
+  return ex;
+}
+
+function buildExList(){
+  const s=ST.current;
+  const c=document.getElementById('exList');
+  c.innerHTML='';
+  const order=['warm-up','main','finisher'];
+  const labels={'warm-up':'Calentamiento','main':'Bloque Principal','finisher':'Finisher'};
+  let last=null, num=0;
+  [...s.exercises].sort((a,b)=>order.indexOf(a.block)-order.indexOf(b.block))
+  .forEach(ex=>{
+    if(ex.block!==last){
+      const l=document.createElement('div');
+      l.className='sec-label';
+      l.textContent=labels[ex.block]||ex.block;
+      c.appendChild(l); last=ex.block;
+    }
+    num++;
+    c.appendChild(buildCard(ex,num));
+  });
+}
+
+function buildCard(ex, num){
+  const ae=activeEx(ex);
+  const isSwap=ex.activeAlt!==null;
+  const isDone=ex.logDone;
+  const rpeW=(ex.intensity||5)*10;
+
+  const div=document.createElement('div');
+  div.className=`exc${isDone?' done':''}${isSwap?' swapped':''}`;
+  div.id=`exc_${ex.uid}`;
+
+  // blocked alert
+  const blockedHtml= ex.blocked && ex.activeAlt===null
+    ?`<div class="blocked-alert">⚠ Equipo ocupado — selecciona alternativa abajo</div>`:'';
+
+  // rpe selector
+  const rpePips=[1,2,3,4,5,6,7,8,9,10].map(r=>
+    `<div class="rpe-pip${ex.log.rpe===r?' on':''}" onclick="setRpe('${ex.uid}',${r})">${r}</div>`
+  ).join('');
+
+  // swap options
+  let swapHtml='';
+  if(ex.alts && ex.alts.length){
+    const opts=ex.alts.map((a,ai)=>`
+      <div class="swap-opt${ex.activeAlt===ai?' picked':''}" onclick="selectAlt('${ex.uid}',${ai})">
+        <div class="swap-opt-name">${a.name}${ex.activeAlt===ai?' ✓':''}</div>
+        <div class="swap-opt-sub">${a.desc}</div>
+      </div>`).join('');
+    const reset=isSwap
+      ?`<div class="swap-reset" onclick="resetAlt('${ex.uid}')">← Volver a ${ex.name}</div>`:'';
+    swapHtml=`
+      <div class="swap-panel${ex.swapOpen?' open':''}" id="swappanel_${ex.uid}">
+        ${opts}${reset}
+      </div>`;
+  }
+
+  // data panel
+  const dataHtml=`
+    <div class="data-panel${ex.dataOpen?' open':''}" id="datapanel_${ex.uid}">
+      <div class="data-grid">
+        <div class="fld">
+          <label>Peso usado (lb)</label>
+          <input type="number" placeholder="—" value="${ex.log.weight}"
+            onchange="setLog('${ex.uid}','weight',this.value)">
+        </div>
+        <div>
+          <div class="rpe-sel-lbl" style="margin-bottom:6px">RPE actual: <span style="color:var(--lima);font-weight:700">${ex.log.rpe||'—'}</span></div>
+        </div>
+      </div>
+      <div class="rpe-sel-lbl">RPE (1–10)</div>
+      <div class="rpe-sel" style="margin-bottom:10px">${rpePips}</div>
+      <div class="fld">
+        <label>Nota</label>
+        <textarea rows="2" placeholder="Sensaciones, ajustes, dolor..."
+          onchange="setLog('${ex.uid}','note',this.value)">${ex.log.note}</textarea>
+      </div>
+    </div>`;
+
+  div.innerHTML=`
+    <div class="exc-top">
+      <div class="exc-badge">${String(num).padStart(2,'0')}</div>
+      <div class="exc-info">
+        <div class="exc-name">${ae.name||ex.name}${isSwap?' <span style="font-size:11px;color:#8b6fe8">↔</span>':''}</div>
+        <div class="exc-meta">${ex.sets} × ${ae.reps||ex.reps} · ${ex.rest}</div>
+      </div>
+    </div>
+    <div class="rpe-row">
+      <span class="rpe-lbl">RPE OBJETIVO</span>
+      <div class="rpe-track"><div class="rpe-fill" style="width:${rpeW}%"></div></div>
+      <span class="rpe-val">RPE ${ex.intensity}</span>
+    </div>
+    <div class="exc-body">
+      ${blockedHtml}
+      <div class="exc-desc">${ae.desc||ex.desc}</div>
+      <div class="bjj-tag">${ex.bjj}</div>
+      <div class="carga-lbl">Carga sugerida</div>
+      <div class="carga-txt">${ex.carga}</div>
+      ${dataHtml}
+      <div class="action-row">
+        <button class="btn-complete${isDone?' done-state':''}" onclick="toggleDone('${ex.uid}')">
+          ${isDone?'✓ Completado':'Marcar completado'}
+        </button>
+        ${ex.alts&&ex.alts.length||true?`<button class="btn-datos${ex.dataOpen?' open':''}" onclick="toggleData('${ex.uid}')">DATOS</button>`:''}
+      </div>
+      ${ex.alts&&ex.alts.length?`<div class="swap-link" onclick="toggleSwap('${ex.uid}')">↳ CAMBIAR EJERCICIO</div>`:''}
+      ${swapHtml}
+    </div>`;
+  return div;
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function setLog(uid,field,val){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.log[field]=val; save();
+}
+function setRpe(uid,val){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.log.rpe=val; save(); recard(uid);
+}
+function toggleDone(uid){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.logDone=!ex.logDone; save(); updateCount(); recard(uid);
+}
+function toggleData(uid){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.dataOpen=!ex.dataOpen; save(); recard(uid);
+}
+function toggleSwap(uid){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.swapOpen=!ex.swapOpen; save(); recard(uid);
+}
+function selectAlt(uid,ai){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.activeAlt=ai; ex.blocked=false; ex.swapOpen=false; save();
+  recard(uid); showToast(`Cambiado a: ${ex.alts[ai].name}`);
+}
+function resetAlt(uid){
+  const ex=ST.current.exercises.find(e=>e.uid===uid); if(!ex) return;
+  ex.activeAlt=null; ex.swapOpen=false; save();
+  recard(uid); showToast(`Vuelto a: ${ex.name}`);
+}
+function recard(uid){
+  const s=ST.current; if(!s) return;
+  const idx=s.exercises.findIndex(e=>e.uid===uid);
+  const ex=s.exercises[idx]; if(!ex) return;
+  // compute num based on sorted order
+  const order=['warm-up','main','finisher'];
+  const sorted=[...s.exercises].sort((a,b)=>order.indexOf(a.block)-order.indexOf(b.block));
+  const num=sorted.findIndex(e=>e.uid===uid)+1;
+  const old=document.getElementById(`exc_${uid}`); if(!old) return;
+  old.replaceWith(buildCard(ex,num));
+}
+
+// ─── FINISH ───────────────────────────────────────────────────────────────────
+function finishSession(){
+  const s=ST.current; if(!s) return;
+  s.completed=true; s.completedAt=new Date().toISOString();
+  ST.sessions.push(JSON.parse(JSON.stringify(s)));
+  ST.current=null; save();
+  showToast('Sesión guardada ✓');
+  renderSession();
+}
+
+// ─── LOG ──────────────────────────────────────────────────────────────────────
+function renderLog(){
+  const c=document.getElementById('logList');
+  if(!ST.sessions.length){
+    c.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Sin sesiones</div><div class="empty-sub">Completa tu primera sesión</div></div>';
+    return;
+  }
+  c.innerHTML=[...ST.sessions].reverse().map(s=>{
+    const rows=s.exercises.map(ex=>{
+      const ae=ex.activeAlt!==null&&ex.alts[ex.activeAlt]?ex.alts[ex.activeAlt]:ex;
+      const l=ex.log;
+      if(!l.weight&&!l.rpe&&!l.note) return '';
+      return `<div class="hist-row">
+        <span class="hist-exname">${ae.name||ex.name}${ex.activeAlt!==null?' ↔':''}</span>
+        <span class="hist-exdata">${l.weight?l.weight+'lb ':''} ${l.rpe?'RPE'+l.rpe:''}</span>
+      </div>${l.note?`<div class="hist-note">📝 ${l.note}</div>`:''}`;
+    }).filter(Boolean).join('');
+    return `<div class="hist-card">
+      <div class="hist-top">
+        <span class="hist-date">${s.date}</span>
+        <span class="hist-phase">${s.phase}</span>
+      </div>
+      <div class="hist-block">${s.block}</div>
+      ${rows||'<div style="font-family:var(--mono);font-size:12px;color:var(--muted)">Sin datos registrados</div>'}
+      ${s.note?`<div class="hist-note">📝 ${s.note}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ─── PROGRESS ─────────────────────────────────────────────────────────────────
+function renderProgress(){
+  const sessions=ST.sessions;
+  const now=new Date();
+  const week=sessions.filter(s=>(now-new Date(s.completedAt||s.timestamp||0))<7*864e5).length;
+  document.getElementById('statGrid').innerHTML=`
+    <div class="stat-box"><div class="stat-n">${sessions.length}</div><div class="stat-l">Total sesiones</div></div>
+    <div class="stat-box"><div class="stat-n">${week}</div><div class="stat-l">Esta semana</div></div>`;
+
+  const map={};
+  sessions.forEach(s=>s.exercises.forEach(ex=>{
+    const ae=ex.activeAlt!==null&&ex.alts[ex.activeAlt]?ex.alts[ex.activeAlt]:ex;
+    const key=ae.name||ex.name;
+    if(!map[key]) map[key]={count:0,weights:[],rpes:[]};
+    if(ex.log.weight) map[key].weights.push(parseFloat(ex.log.weight));
+    if(ex.log.rpe) map[key].rpes.push(ex.log.rpe);
+    if(ex.logDone) map[key].count++;
+  }));
+
+  const list=Object.entries(map).sort((a,b)=>b[1].count-a[1].count).slice(0,12);
+  document.getElementById('exProg').innerHTML=list.length?list.map(([name,d])=>{
+    const avg=d.weights.length?(d.weights.reduce((a,b)=>a+b,0)/d.weights.length).toFixed(0):'—';
+    const max=d.weights.length?Math.max(...d.weights).toFixed(0):'—';
+    const rpe=d.rpes.length?(d.rpes.reduce((a,b)=>a+b,0)/d.rpes.length).toFixed(1):'—';
+    return `<div class="ex-stat">
+      <div class="ex-stat-name">${name}</div>
+      <div class="ex-stat-row">
+        <div class="esi"><div class="v">${d.count}</div><div class="k">Sesiones</div></div>
+        <div class="esi"><div class="v">${avg}<span style="font-size:12px">lb</span></div><div class="k">Prom</div></div>
+        <div class="esi"><div class="v">${max}<span style="font-size:12px">lb</span></div><div class="k">Máx</div></div>
+        <div class="esi"><div class="v">${rpe}</div><div class="k">RPE</div></div>
+      </div>
+    </div>`;
+  }).join(''):'<div style="font-family:var(--mono);font-size:12px;color:var(--muted)">Completa sesiones para ver el progreso.</div>';
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+renderSession();
+</script>
+</body>
+</html>
